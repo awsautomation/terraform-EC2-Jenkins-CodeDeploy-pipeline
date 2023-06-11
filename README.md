@@ -1,7 +1,5 @@
 
-# Terraform Config from Pipeline Blog
-
-This is the Terraform setup that I used in my blog. The blog can be viewed [here](https://medium.com/@TheMattLittle/provisioning-an-automated-ci-cd-pipeline-with-jenkins-and-codedeploy-on-aws-and-using-terraform-to-e4d19d1b8d00).
+# Terraform Config from Pipeline
 
   
 
