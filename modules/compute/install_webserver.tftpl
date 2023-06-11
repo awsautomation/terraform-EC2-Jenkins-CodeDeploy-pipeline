@@ -1,0 +1,46 @@
+#!/bin/bash
+# Update apt and install the necessary dependencies
+# For our python needs: python python3-django python3-pip
+# For web server gateway interface: gunicorn
+# For proxy that points to gunicorn: nginx
+# For CodeDeploy agent: ruby-full wget
+sudo apt update && sudo apt upgrade -y
+sudo apt install python python3-django python3-pip gunicorn nginx ruby-full wget -y
+
+# https://docs.aws.amazon.com/codedeploy/latest/userguide/resource-kit.html#resource-kit-bucket-names
+# Install the CodeDeploy agent on our web server
+cd /home/ubuntu
+wget https://aws-codedeploy-${aws_region}.s3.${aws_region}.amazonaws.com/latest/install
+chmod +x ./install
+sudo ./install auto > /tmp/logfile
+
+# Create the directory /var/www/django
+sudo mkdir /var/www/django
+
+# Add the Ubuntu user to the www-data group
+sudo usermod -aG www-data ubuntu
+# Make the www-data group the owner of var/www/django
+sudo chown -R www-data:www-data /var/www/django
+# Modify the permissions of /var/www/django to 755
+sudo chmod -R 755 /var/www/django
+
+# Grab the public IP address of the EC2 instance and set it to INSTANCE_IP variable
+INSTANCE_IP=$(curl http://169.254.169.254/latest/meta-data-public-ipv4)
+
+# Here we are setting up our nginx configuration
+# copy the default config and name it django
+sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/django 
+# set the server_name to the INSTANCE_IP variable
+sudo sed -i "s|server_name _|server_name $INSTANCE_IP|g" /etc/nginx/sites-available/django
+# set the server directory to /var/www/django
+sudo sed -i 's|/var/www/html|/var/www/django|g' /etc/nginx/sites-available/django
+# add our proxy that points to port 9000 (where gunicorn will be running)
+sudo gawk -i inplace '{print} /=404;/ && !n {print "\t\tproxy_pass http://0.0.0.0:9000;"; n++}' /etc/nginx/sites-available/django
+
+# Here we are creating a symbolic link with our new nginx config
+cd /etc/nginx/sites-enabled
+sudo rm default
+sudo ln -s ../sites-available/django
+
+# Restart nginx for the changes to be made
+sudo systemctl restart nginx
